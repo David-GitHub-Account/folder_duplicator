@@ -5,26 +5,28 @@ from modules.copyfolder import CopyFolder
 from pathlib import Path
 from time import sleep
 import keyboard
+import os
 
 class Application():
     def __init__(self,arguments: dict) -> None:
-        if(self.arguments_correct(arguments)):
-            self.SOURCE_LOCATION = Path(arguments["source_path"])
-            self.DESTINATION_LOCATION = Path(arguments["destination_path"])
-            self.SYNCHRONIZATION_INTERVAL = int(arguments["synchronization_interval"])
-            self.LOG_PATH = Path(arguments["log_path"])
-            self.STATUS = Constants.OK
-        else:
+        self.initialize_logger(arguments)
+        if(self.no_input_arguments(arguments)):
             self.SOURCE_LOCATION = Path("c:/git/test/main")
             self.DESTINATION_LOCATION = Path("c:/git/test/copy")
             self.SYNCHRONIZATION_INTERVAL = 2
-            self.LOG_PATH = Path("c:/giti/test/logs")
             choice = input("Do you want to launch the application with default setting (Y/N)?")
             if(choice == 'Y' or choice == 'y'):
                 self.STATUS = Constants.DEFAULT
             else:
                 self.STATUS = Constants.EROOR
-        self.logger = Logger.set_logger('record',self.LOG_PATH)
+        else:
+            if(self.validate_arguments(arguments)):
+                self.SOURCE_LOCATION = Path(arguments["source_path"])
+                self.DESTINATION_LOCATION = Path(arguments["destination_path"])
+                self.SYNCHRONIZATION_INTERVAL = float(arguments["synchronization_interval"])
+                self.STATUS = Constants.OK
+            else:
+                self.STATUS = Constants.EROOR
         if(self.STATUS != Constants.EROOR):
             self.monitor_folder = MonitorFolder(self)
             self.copy_folder = CopyFolder(self)
@@ -42,8 +44,39 @@ class Application():
             sleep(pause)
         self.logger.info("The application was terminated!!")
 
-    def arguments_correct(self,arguments: dict) -> bool:
-        return len([argument_value for argument_value in arguments.values() if argument_value is None])==0
+    def initialize_logger(self,arguments: dict) -> None:
+        log_path_key = "log_path"
+        if arguments[log_path_key] is not None and os.path.exists(arguments[log_path_key]):
+            self.logger = Logger.set_logger('record',Path(arguments[log_path_key]))
+        else:
+            self.logger = Logger.set_logger('record',Path("./"))
+            if arguments[log_path_key] is None:
+                self.logger.warning(f"Log file argument not provided, log'll be stored into same folder as executed python application!")
+            elif not os.path.exists(arguments[log_path_key]):
+                self.logger.warning(f"Provided log path doesn't exist, log'll be stored into same folder as executed python application!")
+        del arguments[log_path_key]
+
+    def validate_arguments(self,arguments: dict) -> bool:
+        result = True
+        for argument_key in arguments.keys():
+            if "path" in argument_key:
+                if arguments[argument_key] is None:
+                    self.logger.error(f"Argument \"{argument_key}\" wasn't specified!")
+                    result = False
+                elif not os.path.exists(arguments[argument_key]):
+                    self.logger.error(f"Inserted {argument_key.replace("_path","")} folder doesn't exist!")
+                    result = False
+            elif "interval" in argument_key:
+                if arguments[argument_key] is None:
+                    self.logger.error(f"Synchronization interval wasn't specified, requested value should be float number bigger than 0.1!")
+                    result = False
+                elif not arguments[argument_key].isdigit() or float(arguments[argument_key]) < 0.1 :
+                    self.logger.error(f"Inserted value \"{arguments[argument_key]}\" must be float number bigger than 0.1!")
+                    result = False
+        return result
+    
+    def no_input_arguments(self, arguments: dict) -> bool:
+        return len([argument_value for argument_value in arguments.values() if argument_value is None])==len(arguments)
     
     def key_q_pressed(self):
         return keyboard.is_pressed('Q') or keyboard.is_pressed('q')
