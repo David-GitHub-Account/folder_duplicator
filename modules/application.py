@@ -10,6 +10,7 @@ import os
 class Application():
     def __init__(self,arguments: dict) -> None:
         self.initialize_logger(arguments)
+        self.STATUS = Constants.EROOR
         if(self.no_input_arguments(arguments)):
             self.SOURCE_LOCATION = Path("c:/git/test/main")
             self.DESTINATION_LOCATION = Path("c:/git/test/copy")
@@ -17,16 +18,12 @@ class Application():
             choice = input("Do you want to launch the application with default setting (Y/N)?")
             if(choice == 'Y' or choice == 'y'):
                 self.STATUS = Constants.DEFAULT
-            else:
-                self.STATUS = Constants.EROOR
         else:
             if(self.validate_arguments(arguments)):
                 self.SOURCE_LOCATION = Path(arguments["source_path"])
                 self.DESTINATION_LOCATION = Path(arguments["destination_path"])
                 self.SYNCHRONIZATION_INTERVAL = float(arguments["synchronization_interval"])
                 self.STATUS = Constants.OK
-            else:
-                self.STATUS = Constants.EROOR
         if(self.STATUS != Constants.EROOR):
             self.monitor_folder = MonitorFolder(self)
             self.copy_folder = CopyFolder(self)
